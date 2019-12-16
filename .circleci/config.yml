@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-    - image: circleci/golang:1.10.2
+    - image: golang:1
     - image: neo4j:3.4.10-enterprise
       environment:
         NEO4J_AUTH: none
@@ -84,6 +84,13 @@ jobs:
     - run:
         name: Go Build
         command: go build -v
+    - run:
+        name: Download dredd
+        command: |
+            curl -sL https://deb.nodesource.com/setup_11.x | bash -
+            DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs=11.\*
+            npm install -g --unsafe-perm --loglevel warn --user 0 --no-progress dredd@8.0.0
+            rm -rf /var/lib/apt/lists/*       
     - run:
         name: Dredd API Testing
         command: dredd
