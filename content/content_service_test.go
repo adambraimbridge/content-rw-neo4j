@@ -248,11 +248,12 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 
 	uuid := standardContent.UUID
 	contentReceived := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
-	contentDriver.Write(contentReceived, "TEST_TRANS_ID")
+	err := contentDriver.Write(contentReceived, "TEST_TRANS_ID")
+	assert.NoError(err)
 
-	result := []struct {
+	var result []struct {
 		PublishedDateEpoc int `json:"t.publishedDateEpoch"`
-	}{}
+	}
 
 	getEpochQuery := &neoism.CypherQuery{
 		Statement: `
@@ -264,7 +265,7 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 		Result: &result,
 	}
 
-	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getEpochQuery})
+	err = contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getEpochQuery})
 	assert.NoError(err)
 	assert.Equal(3600, result[0].PublishedDateEpoc, "Epoc of 1970-01-01T01:00:00.000Z should be 3600")
 }
@@ -276,11 +277,12 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	contentDriver.Write(standardContent, "TEST_TRANS_ID")
+	err := contentDriver.Write(standardContent, "TEST_TRANS_ID")
+	assert.NoError(err)
 
-	result := []struct {
+	var result []struct {
 		PrefLabel string `json:"t.prefLabel"`
-	}{}
+	}
 
 	getPrefLabelQuery := &neoism.CypherQuery{
 		Statement: `
@@ -292,7 +294,7 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 		Result: &result,
 	}
 
-	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getPrefLabelQuery})
+	err = contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getPrefLabelQuery})
 	assert.NoError(err)
 	assert.Equal(standardContent.Title, result[0].PrefLabel, "PrefLabel should be 'Content Title'")
 }
@@ -304,11 +306,12 @@ func TestWriteNodeLabelsAreWrittenForContent(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	contentDriver.Write(standardContent, "TEST_TRANS_ID")
+	err := contentDriver.Write(standardContent, "TEST_TRANS_ID")
+	assert.NoError(err)
 
-	result := []struct {
+	var result []struct {
 		NodeLabels []string `json:"labels(t)"`
-	}{}
+	}
 
 	getNodeLabelsQuery := &neoism.CypherQuery{
 		Statement: `
@@ -320,7 +323,7 @@ func TestWriteNodeLabelsAreWrittenForContent(t *testing.T) {
 		Result: &result,
 	}
 
-	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getNodeLabelsQuery})
+	err = contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getNodeLabelsQuery})
 	assert.NoError(err)
 	assert.Len(result[0].NodeLabels, 2, "There should be 2 node labels: Thing, Content")
 	assert.Equal("Thing", result[0].NodeLabels[0], "Thing should be the parent label")
@@ -334,11 +337,12 @@ func TestWriteNodeLabelsAreWrittenForContentPackage(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	contentDriver.Write(standardContentPackage, "TEST_TRANS_ID")
+	err := contentDriver.Write(standardContentPackage, "TEST_TRANS_ID")
+	assert.NoError(err)
 
-	result := []struct {
+	var result []struct {
 		NodeLabels []string `json:"labels(t)"`
-	}{}
+	}
 
 	getNodeLabelsQuery := &neoism.CypherQuery{
 		Statement: `
@@ -350,7 +354,7 @@ func TestWriteNodeLabelsAreWrittenForContentPackage(t *testing.T) {
 		Result: &result,
 	}
 
-	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getNodeLabelsQuery})
+	err = contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getNodeLabelsQuery})
 	assert.NoError(err)
 	assert.Len(result[0].NodeLabels, 3, "There should be 3 node labels: Thing, Content, ContentPackage")
 	assert.Equal("Thing", result[0].NodeLabels[0], "Thing should be the grandparent label")
@@ -365,12 +369,12 @@ func TestWriteNodeLabelsAreWrittenForGenericContentPackage(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	contentDriver.Write(genericContentPackage, "TEST_TRANS_ID")
+	err := contentDriver.Write(genericContentPackage, "TEST_TRANS_ID")
+	assert.NoError(err)
 
-	result := []struct {
+	var result []struct {
 		NodeLabels []string `json:"labels(t)"`
-	}{}
-
+	}
 	getNodeLabelsQuery := &neoism.CypherQuery{
 		Statement: `
 				MATCH (t:Content {uuid:{uuid}}) RETURN labels(t)
@@ -381,7 +385,7 @@ func TestWriteNodeLabelsAreWrittenForGenericContentPackage(t *testing.T) {
 		Result: &result,
 	}
 
-	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getNodeLabelsQuery})
+	err = contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getNodeLabelsQuery})
 	assert.NoError(err)
 	assert.Len(result[0].NodeLabels, 3, "There should be 3 node labels: Thing, Content, ContentPackage")
 	assert.Equal("Thing", result[0].NodeLabels[0], "Thing should be the grandparent label")
@@ -526,9 +530,9 @@ func writeRelationship(db neoutils.NeoConnection, contentID string, conceptID st
 
 func doesThingExist(uuid string, db neoutils.NeoConnection) (bool, error) {
 
-	result := []struct {
+	var result []struct {
 		UUID string `json:"uuid,omitempty"`
-	}{}
+	}
 	query := &neoism.CypherQuery{
 		Statement: "MATCH (t:Thing {uuid:{uuid}}) RETURN t.uuid as uuid",
 		Parameters: neoism.Props{
@@ -545,9 +549,9 @@ func checkIsCuratedForRelationship(db neoutils.NeoConnection, spID string, asser
 	countQuery := `	MATCH (t:Thing{uuid:{storyPackageId}})-[r:IS_CURATED_FOR]->(x)
 			RETURN count(r) as c`
 
-	results := []struct {
+	var results []struct {
 		Count int `json:"c"`
-	}{}
+	}
 
 	qs := &neoism.CypherQuery{
 		Statement:  countQuery,
@@ -565,9 +569,9 @@ func checkContainsRelationship(db neoutils.NeoConnection, cpID string, assert *a
 	countQuery := `	MATCH (t:Thing{uuid:{contentPackageId}})<-[r:CONTAINS]-(x)
 			RETURN count(r) as c`
 
-	results := []struct {
+	var results []struct {
 		Count int `json:"c"`
-	}{}
+	}
 
 	qs := &neoism.CypherQuery{
 		Statement:  countQuery,
@@ -584,9 +588,9 @@ func checkContainsRelationship(db neoutils.NeoConnection, cpID string, assert *a
 func checkDbClean(db neoutils.CypherRunner, t *testing.T) {
 	assert := assert.New(t)
 
-	result := []struct {
-		Uuid string `json:"t.uuid"`
-	}{}
+	var result []struct {
+		UUID string `json:"t.uuid"`
+	}
 
 	checkGraph := neoism.CypherQuery{
 		Statement: `
