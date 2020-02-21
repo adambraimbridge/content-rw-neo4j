@@ -5,10 +5,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/Financial-Times/go-logger"
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	"github.com/jmcvetta/neoism"
 	"github.com/stretchr/testify/assert"
-	"github.com/Financial-Times/go-logger"
 )
 
 const (
@@ -21,6 +21,7 @@ const (
 	videoContentUUID             = "41bb9444-e3cf-46d4-8182-6702844dc5c1"
 	storyPackageUUID             = "3b08c76c-7479-461d-9f0e-a4e92dca56f7"
 	contentPackageUUID           = "45163790-eec9-11e6-abbc-ee7d9c5b3b90"
+	genericContentPackageUUID    = "27cfe7eb-549d-4d51-9cfd-98ea887a571c"
 	graphicUUID                  = "087b42c2-ac7f-40b9-b112-98b3a7f9cd72"
 	audioContentUUID             = "128cfcf4-c394-4e71-8c65-198a675acf53"
 )
@@ -81,6 +82,15 @@ var standardContentPackage = content{
 	Body:           "Some body",
 	StoryPackage:   storyPackageUUID,
 	ContentPackage: contentPackageUUID,
+}
+
+var genericContentPackage = content{
+	UUID:           contentUUID,
+	Title:          "Content Title",
+	PublishedDate:  "1970-01-01T01:00:00.000Z",
+	Body:           "Some body",
+	ContentPackage: genericContentPackageUUID,
+	Type:           "ContentPackage",
 }
 
 var shorterContent = content{
@@ -222,7 +232,7 @@ func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	storedContent, _, err = contentDriver.Read(contentUUID, "TEST_TRANS_ID")
 
 	assert.NoError(err)
-	assert.NotEmpty(storedContent, "Failed to rtreive updated content")
+	assert.NotEmpty(storedContent, "Failed to rеtriеve updated content")
 	assert.Empty(storedContent.(content).Title, "Update should have removed Title but it is still present")
 	assert.Empty(storedContent.(content).PublishedDate, "Update should have removed PublishedDate but it is still present")
 	assert.Equal(0, checkIsCuratedForRelationship(db, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
@@ -336,6 +346,37 @@ func TestWriteNodeLabelsAreWrittenForContentPackage(t *testing.T) {
 				`,
 		Parameters: neoism.Props{
 			"uuid": standardContent.UUID,
+		},
+		Result: &result,
+	}
+
+	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getNodeLabelsQuery})
+	assert.NoError(err)
+	assert.Len(result[0].NodeLabels, 3, "There should be 3 node labels: Thing, Content, ContentPackage")
+	assert.Equal("Thing", result[0].NodeLabels[0], "Thing should be the grandparent label")
+	assert.Equal("Content", result[0].NodeLabels[1], "Content should be the parent label")
+	assert.Equal("ContentPackage", result[0].NodeLabels[2], "ContentPackage should be the child label")
+}
+
+func TestWriteNodeLabelsAreWrittenForGenericContentPackage(t *testing.T) {
+	assert := assert.New(t)
+
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
+
+	contentDriver.Write(genericContentPackage, "TEST_TRANS_ID")
+
+	result := []struct {
+		NodeLabels []string `json:"labels(t)"`
+	}{}
+
+	getNodeLabelsQuery := &neoism.CypherQuery{
+		Statement: `
+				MATCH (t:Content {uuid:{uuid}}) RETURN labels(t)
+				`,
+		Parameters: neoism.Props{
+			"uuid": genericContentPackage.UUID,
 		},
 		Result: &result,
 	}
