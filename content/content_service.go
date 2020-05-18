@@ -152,12 +152,10 @@ func (cd service) Write(thing interface{}, transId string) error {
 		addContentPackageRelationQuery := addContentPackageRelationQuery(c.UUID, c.ContentPackage)
 		queries = append(queries, addContentPackageRelationQuery)
 
+		labels = labels + `:ContentPackage`
 		if c.Type == LiveBlogPackage {
 			labels = labels + `:` + LiveBlogPackage
-		} else {
-			labels = labels + `:ContentPackage`
 		}
-
 	}
 
 	statement := `MERGE (n:Thing {uuid: {uuid}})
